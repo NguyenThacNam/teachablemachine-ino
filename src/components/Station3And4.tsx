@@ -1,5 +1,26 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import confetti from 'canvas-confetti';
+import { CAP_SO_SANH, timMoHinh } from '../data/models';
+import { useCamera } from '../hooks/useCamera';
+import { useDuDoan } from '../hooks/useDuDoan';
+
+/** Một lượt thử đã chấm: cả hai mô hình cùng đoán trên một khung hình */
+interface LuotThu {
+  id: number;
+  nhanThat: string;
+  aNhan: string;
+  aTinCay: number;
+  bNhan: string;
+  bTinCay: number;
+}
+
+const SO_LUOT_KET_LUAN = 10;
+
+/** Hai cột so sánh của Trạm 3 — màu và lời mô tả cố định */
+const THE_MO_HINH = [
+  { ma: 'A', thanh: 'bg-cot-5', chu: 'text-cot-5', ghiChu: 'Học ít ảnh, dễ lung lay' },
+  { ma: 'B', thanh: 'bg-cot-1', chu: 'text-cot-1', ghiChu: 'Học nhiều ảnh, vững hơn' },
+] as const;
 
 interface Station3And4Props {
   initialStation?: 'station-3' | 'station-4';
@@ -12,44 +33,47 @@ export const Station3And4: React.FC<Station3And4Props> = ({
 }) => {
   const [activeTab, setActiveTab] = useState<'station-3' | 'station-4'>(initialStation);
 
-  // Station 3 States
-  const [currentTestSample, setCurrentTestSample] = useState<number>(0);
-  const [scores, setScores] = useState({ modelA: 4, modelB: 9, total: 10 });
-  const [recentTrials, setRecentTrials] = useState([
-    { id: 1, test: 'Bút nghiêng 45°', resA: 'Nhầm Sách (42%) ❌', resB: 'Đúng Bút (93%) ✅' },
-    { id: 2, test: 'Bút ngược sáng', resA: 'Nhầm Tẩy (38%) ❌', resB: 'Đúng Bút (89%) ✅' },
-    { id: 3, test: 'Bút thẳng chính diện', resA: 'Đúng Bút (78%) ✅', resB: 'Đúng Bút (97%) ✅' },
-    { id: 4, test: 'Bút che ngòi', resA: 'Nhầm Sách (29%) ❌', resB: 'Đúng Bút (85%) ✅' },
-  ]);
+  // ---- Trạm 3: hai mô hình thật cùng nhìn một khung hình ----
+  const moHinhA = timMoHinh(CAP_SO_SANH.itAnh);
+  const moHinhB = timMoHinh(CAP_SO_SANH.nhieuAnh);
 
-  const testSamples = [
-    { name: 'Bút bi góc nghiêng 60°', trueLabel: 'Bút bi', aPred: 'Quyển sách (46%)', aCorrect: false, bPred: 'Bút bi (92%)', bCorrect: true },
-    { name: 'Bút bi bị che một phần ngòi', trueLabel: 'Bút bi', aPred: 'Cục tẩy (35%)', aCorrect: false, bPred: 'Bút bi (88%)', bCorrect: true },
-    { name: 'Bút bi đặt trên vở kẻ ô', trueLabel: 'Bút bi', aPred: 'Vở ghi (64%)', aCorrect: false, bPred: 'Bút bi (91%)', bCorrect: true },
-    { name: 'Bút bi thẳng trên bàn trắng', trueLabel: 'Bút bi', aPred: 'Bút bi (84%)', aCorrect: true, bPred: 'Bút bi (98%)', bCorrect: true },
-  ];
+  const [camBat, setCamBat] = useState(false);
+  const [camTruoc, setCamTruoc] = useState(false);
+  const [nhanThat, setNhanThat] = useState('');
+  const [luotThu, setLuotThu] = useState<LuotThu[]>([]);
 
-  const handleNextTrial = () => {
-    const nextIdx = (currentTestSample + 1) % testSamples.length;
-    setCurrentTestSample(nextIdx);
-    const item = testSamples[nextIdx];
-    
-    setScores(prev => ({
-      modelA: item.aCorrect ? prev.modelA + 1 : prev.modelA,
-      modelB: item.bCorrect ? prev.modelB + 1 : prev.modelB,
-      total: prev.total + 1
-    }));
+  const { videoRef, loi: loiCamera } = useCamera(camBat, camTruoc, () => setCamBat(false));
 
-    setRecentTrials(prev => [
+  // Hai hook độc lập, cùng đọc một thẻ <video>. Để 5 khung/giây mỗi bên vì máy
+  // tính bảng phải chạy hai mô hình cùng lúc.
+  const A = useDuDoan(moHinhA?.nguon ?? null, videoRef, { dangChay: camBat, lat: camTruoc, fps: 5 });
+  const B = useDuDoan(moHinhB?.nguon ?? null, videoRef, { dangChay: camBat, lat: camTruoc, fps: 5 });
+
+  const nhanChung = A.labels.length > 0 ? A.labels : B.labels;
+
+  const diem = useMemo(() => {
+    const a = luotThu.filter((l) => l.aNhan === l.nhanThat).length;
+    const b = luotThu.filter((l) => l.bNhan === l.nhanThat).length;
+    return { a, b, tong: luotThu.length };
+  }, [luotThu]);
+
+  const chamMotLuot = () => {
+    if (!A.nhanCaoNhat || !B.nhanCaoNhat || !nhanThat) return;
+    setLuotThu((prev) => [
       {
         id: Date.now(),
-        test: item.name,
-        resA: item.aCorrect ? `Đúng Bút (${item.aPred}) ✅` : `Nhầm (${item.aPred}) ❌`,
-        resB: `Đúng Bút (${item.bPred}) ✅`
+        nhanThat,
+        aNhan: A.nhanCaoNhat!.label,
+        aTinCay: A.nhanCaoNhat!.probability,
+        bNhan: B.nhanCaoNhat!.label,
+        bTinCay: B.nhanCaoNhat!.probability,
       },
-      ...prev.slice(0, 4)
+      ...prev,
     ]);
   };
+
+  const phanTram = (p: number) => (p * 100).toFixed(1);
+  const tiLe = (dung: number) => (diem.tong === 0 ? 0 : Math.round((dung / diem.tong) * 100));
 
   // Station 4 States (Bias)
   const [selectedPenColor, setSelectedPenColor] = useState<'blue' | 'red' | 'yellow'>('blue');
@@ -108,163 +132,239 @@ export const Station3And4: React.FC<Station3And4Props> = ({
       </div>
 
       {activeTab === 'station-3' ? (
-        /* STATION 3: DUAL MODEL BENCHMARK */
+        /* TRẠM 3 — HAI MÔ HÌNH THẬT, MỘT KHUNG HÌNH */
         <div className="flex flex-col gap-6">
-          {/* Header Description Card */}
-          <div className="bg-the p-6 rounded-to border border-ke flex flex-col md:flex-row md:items-center justify-between gap-4">
-            <div className="flex flex-col gap-1">
-              <div className="flex items-center gap-2">
-                <span className="px-2.5 py-0.5 rounded-nho bg-ke text-nhan-dam text-sm font-semibold">
-                  YCCĐ: 6.C1.1
-                </span>
-                <span className="text-sm text-muc-mo font-semibold">Tuần 5 • THCS</span>
-              </div>
-              <h2 className="text-xl sm:text-2xl font-semibold text-toi">
-                Đối Đầu Trực Diện: Mô Hình 5 Ảnh vs Mô Hình 50 Ảnh
-              </h2>
-              <p className="text-sm sm:text-base text-muc-nhat">
-                Cho hai mạng nơ-ron cùng xem một vật thể thật. Quan sát xem khi nào mô hình thiếu dữ liệu sẽ bị "sập bẫy".
-              </p>
+          <div className="the p-6 flex flex-col gap-2">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="chip">YCCĐ 6.C1.1</span>
+              <span className="chip">Tuần 5</span>
             </div>
-
-            {/* Scoreboard Widget */}
-            <div className="flex items-center gap-3 bg-nhan-nen p-3 rounded-to border border-ke shrink-0">
-              <div className="flex flex-col items-center justify-center p-2 bg-white rounded-vua min-w-[75px]">
-                <span className="text-sm font-semibold text-muc-mo">Mẫu A (5 ảnh)</span>
-                <span className="text-xl font-bold text-loi">{scores.modelA} điểm</span>
-              </div>
-              <span className="font-bold text-muc-mo">vs</span>
-              <div className="flex flex-col items-center justify-center p-2 bg-white rounded-vua min-w-[75px]">
-                <span className="text-sm font-semibold text-muc-mo">Mẫu B (50 ảnh)</span>
-                <span className="text-xl font-bold text-nhan">{scores.modelB} điểm</span>
-              </div>
-            </div>
+            <h2 className="text-xl sm:text-2xl font-semibold text-muc">
+              Đối đầu: mô hình 5 ảnh và mô hình 50 ảnh
+            </h2>
+            <p className="text-base text-muc-nhat">
+              Hai mô hình cùng học ba nhãn giống hệt nhau, chỉ khác số ảnh đã xem. Cùng một khung
+              hình camera, cùng một lúc — xem bên nào đoán vững hơn.
+            </p>
           </div>
 
-          {/* Test Sample Controller */}
-          <div className="bg-the p-5 rounded-to border border-ke flex flex-col sm:flex-row items-center justify-between gap-4">
-            <div className="flex items-center gap-3">
-              <span className="w-10 h-10 rounded-vua bg-ke text-nhan-dam flex items-center justify-center font-semibold">
-                📸
-              </span>
-              <div>
-                <span className="text-sm font-semibold text-muc-mo">Vật thể thử nghiệm:</span>
-                <h4 className="text-base font-semibold text-toi">{testSamples[currentTestSample].name}</h4>
-              </div>
+          {(A.trangThai === 'loi' || B.trangThai === 'loi') && (
+            <div className="p-4 rounded-vua bg-loi-nen border border-loi text-loi text-base">
+              ⚠️ {A.loi ?? B.loi}
             </div>
+          )}
 
-            <button
-              onClick={handleNextTrial}
-              className="min-h-[46px] px-6 rounded-vua bg-nhan text-white font-semibold text-base hover:bg-nhan-dam active:translate-y-0.5 transition-all flex items-center gap-2 cursor-pointer shrink-0"
-              type="button"
-            >
-              <span>Chấm Lượt Tiếp Theo</span>
-              <span className="text-[18px]" aria-hidden="true">▶</span>
-            </button>
-          </div>
-
-          {/* Side-by-Side Dual Inference Models */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* MODEL A (5 IMAGES) */}
-            <div className="bg-the p-6 rounded-to border-2 border-ke flex flex-col justify-between gap-5 relative overflow-hidden">
-              <div className="absolute top-0 right-0 px-3 py-1 bg-loi-nen text-loi text-sm font-semibold rounded-bl-xl">
-                THIẾU DỮ LIỆU
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+            {/* Camera dùng chung cho cả hai mô hình */}
+            <section className="lg:col-span-5 flex flex-col gap-4">
+              <div className="relative w-full aspect-[4/3] rounded-to bg-toi overflow-hidden border border-toi-nhat flex items-center justify-center">
+                <video
+                  ref={videoRef}
+                  autoPlay
+                  playsInline
+                  muted
+                  className={`absolute inset-0 w-full h-full object-cover ${
+                    camTruoc ? 'scale-x-[-1]' : ''
+                  } ${camBat ? '' : 'hidden'}`}
+                />
+                {!camBat && (
+                  <div className="relative z-10 flex flex-col items-center gap-3 px-6 text-center">
+                    <span className="text-[48px]" aria-hidden="true">📷</span>
+                    <p className="text-base text-toi-chu">Bật camera để hai mô hình cùng nhìn</p>
+                    {loiCamera && <p className="text-sm text-toi-chu opacity-80">{loiCamera}</p>}
+                  </div>
+                )}
+                {camBat && (
+                  <div className="relative z-10 h-[78%] aspect-square border border-toi-chu/70 pointer-events-none" />
+                )}
               </div>
 
-              <div className="flex flex-col gap-4">
-                <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 rounded-to bg-loi-nen text-loi flex items-center justify-center font-semibold text-lg">
-                    A
-                  </div>
-                  <div>
-                    <h3 className="text-lg font-semibold text-toi">Mô hình A (5 ảnh/nhãn)</h3>
-                    <p className="text-sm text-muc-mo">Chỉ chụp góc thẳng đứng, không đổi phông nền</p>
-                  </div>
+              <div className="grid grid-cols-2 gap-2.5">
+                <button
+                  onClick={() => setCamBat((v) => !v)}
+                  className={`nut ${camBat ? '' : 'nut-chinh'}`}
+                  type="button"
+                >
+                  {camBat ? '⏹ Dừng camera' : '📹 Bật camera'}
+                </button>
+                <button
+                  onClick={() => setCamTruoc((v) => !v)}
+                  disabled={!camBat}
+                  className="nut"
+                  type="button"
+                >
+                  🔄 {camTruoc ? 'Camera trước' : 'Camera sau'}
+                </button>
+              </div>
+
+              <div className="the p-5 flex flex-col gap-3">
+                <span className="text-base font-semibold text-muc">Vật thật em đang cầm là:</span>
+                <div className="flex flex-wrap gap-2">
+                  {nhanChung.map((n) => (
+                    <button
+                      key={n}
+                      onClick={() => setNhanThat(n)}
+                      className={`nut ${nhanThat === n ? 'nut-dang-chon' : ''}`}
+                      type="button"
+                    >
+                      {n}
+                    </button>
+                  ))}
+                </div>
+                <button
+                  onClick={chamMotLuot}
+                  disabled={!camBat || !nhanThat || !A.nhanCaoNhat || !B.nhanCaoNhat}
+                  className="nut nut-chinh"
+                  type="button"
+                >
+                  ✍️ Chấm lượt thử này
+                </button>
+                {luotThu.length > 0 && (
+                  <button onClick={() => setLuotThu([])} className="nut" type="button">
+                    Xoá bảng đếm
+                  </button>
+                )}
+              </div>
+            </section>
+
+            {/* Hai mô hình chạy song song */}
+            <section className="lg:col-span-7 flex flex-col gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {THE_MO_HINH.map((cot) => {
+                  const kq = cot.ma === 'A' ? A : B;
+                  const mh = cot.ma === 'A' ? moHinhA : moHinhB;
+                  return (
+                    <div key={cot.ma} className="the p-5 flex flex-col gap-3">
+                      <div className="flex items-baseline justify-between gap-2">
+                        <h3 className="text-lg font-semibold text-muc">
+                          Mô hình {cot.ma}
+                          <span className="so text-sm text-muc-mo ml-2">
+                            {mh?.soAnhMoiNhan} ảnh/nhãn
+                          </span>
+                        </h3>
+                        {kq.trangThai === 'dang-nap' && (
+                          <span className="text-sm text-muc-mo">⏳ đang nạp…</span>
+                        )}
+                      </div>
+                      <p className="text-sm text-muc-mo">{cot.ghiChu}</p>
+
+                      {kq.nhanCaoNhat ? (
+                        <>
+                          <div className="o-trong p-4 flex flex-col gap-0.5">
+                            <span className="text-sm text-muc-nhat">Máy đang nói:</span>
+                            <span className="text-2xl font-bold text-muc">
+                              {kq.nhanCaoNhat.label}
+                            </span>
+                            <span className={`so text-lg ${cot.chu}`}>
+                              {phanTram(kq.nhanCaoNhat.probability)}%
+                            </span>
+                          </div>
+
+                          <div className="flex flex-col gap-2">
+                            {kq.duDoan.map((d) => (
+                              <div key={d.label} className="flex flex-col gap-1">
+                                <div className="flex justify-between text-sm">
+                                  <span className="text-muc-nhat">{d.label}</span>
+                                  <span className="so text-muc-nhat">
+                                    {phanTram(d.probability)}%
+                                  </span>
+                                </div>
+                                <div className="w-full h-2.5 bg-giay rounded-full overflow-hidden">
+                                  <div
+                                    className={`h-full ${cot.thanh} rounded-full transition-all duration-200`}
+                                    style={{ width: `${d.probability * 100}%` }}
+                                  />
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </>
+                      ) : (
+                        <p className="text-base text-muc-mo py-6 text-center">
+                          {kq.trangThai === 'dang-nap' ? 'Đang chuẩn bị mô hình…' : 'Chờ camera…'}
+                        </p>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Bảng đếm đúng/sai — số thật, không dựng sẵn */}
+              <div className="the p-5 flex flex-col gap-3">
+                <div className="flex flex-wrap items-baseline justify-between gap-2">
+                  <h3 className="text-lg font-semibold text-muc">Bảng đếm</h3>
+                  <span className="so text-sm text-muc-mo">
+                    {diem.tong}/{SO_LUOT_KET_LUAN} lượt
+                  </span>
                 </div>
 
-                {/* Inference Result */}
-                <div className="p-4 rounded-to bg-loi-nen border border-loi-nen flex flex-col gap-2">
-                  <div className="flex justify-between items-center text-sm font-semibold">
-                    <span className="text-muc-nhat">Dự đoán của AI:</span>
-                    <span className="text-loi">
-                      {testSamples[currentTestSample].aCorrect ? 'CHÍNH XÁC ✅' : 'SAI LỆCH ❌'}
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="o-trong p-4 flex flex-col items-center">
+                    <span className="text-sm text-muc-nhat">Mô hình A · 5 ảnh</span>
+                    <span className="so text-3xl font-bold text-cot-5">
+                      {diem.a}/{diem.tong}
                     </span>
+                    <span className="so text-sm text-muc-mo">{tiLe(diem.a)}% đúng</span>
                   </div>
-                  <div className="text-2xl font-bold text-toi">
-                    {testSamples[currentTestSample].aPred}
-                  </div>
-                  <div className="w-full bg-ke h-2.5 rounded-full overflow-hidden">
-                    <div
-                      className="bg-loi h-full rounded-full transition-all duration-500"
-                      style={{ width: testSamples[currentTestSample].aCorrect ? '84%' : '46%' }}
-                    ></div>
-                  </div>
-                </div>
-
-                <div className="p-3 rounded-vua bg-giay text-sm text-muc-nhat">
-                  ⚠️ <strong>Nhược điểm:</strong> Gặp vật thể ở góc chụp khác với 5 ảnh mẫu, mô hình liền bị sập độ tin cậy hoặc đoán bừa sang lớp khác.
-                </div>
-              </div>
-
-              <div className="text-sm text-muc-mo text-right">
-                Độ chính xác tích lũy: {Math.round((scores.modelA / scores.total) * 100)}%
-              </div>
-            </div>
-
-            {/* MODEL B (50 IMAGES) */}
-            <div className="bg-the p-6 rounded-to border-2 border-ke-dam flex flex-col justify-between gap-5 relative overflow-hidden">
-              <div className="absolute top-0 right-0 px-3 py-1 bg-ke text-nhan-dam text-sm font-semibold rounded-bl-xl">
-                ĐA DẠNG DỮ LIỆU
-              </div>
-
-              <div className="flex flex-col gap-4">
-                <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 rounded-to bg-nhan-nen text-nhan flex items-center justify-center font-semibold text-lg">
-                    B
-                  </div>
-                  <div>
-                    <h3 className="text-lg font-semibold text-toi">Mô hình B (50 ảnh/nhãn)</h3>
-                    <p className="text-sm text-muc-mo">Chụp nhiều góc độ, đổi bàn học & ánh sáng</p>
+                  <div className="o-trong p-4 flex flex-col items-center">
+                    <span className="text-sm text-muc-nhat">Mô hình B · 50 ảnh</span>
+                    <span className="so text-3xl font-bold text-cot-1">
+                      {diem.b}/{diem.tong}
+                    </span>
+                    <span className="so text-sm text-muc-mo">{tiLe(diem.b)}% đúng</span>
                   </div>
                 </div>
 
-                {/* Inference Result */}
-                <div className="p-4 rounded-to bg-nhan-nen border border-ke flex flex-col gap-2">
-                  <div className="flex justify-between items-center text-sm font-semibold">
-                    <span className="text-muc-nhat">Dự đoán của AI:</span>
-                    <span className="text-nhan-dam">CHÍNH XÁC ✅</span>
-                  </div>
-                  <div className="text-2xl font-bold text-toi">
-                    {testSamples[currentTestSample].bPred}
-                  </div>
-                  <div className="w-full bg-ke h-2.5 rounded-full overflow-hidden">
-                    <div
-                      className="bg-nhan h-full rounded-full transition-all duration-500"
-                      style={{ width: '92%' }}
-                    ></div>
-                  </div>
-                </div>
+                {luotThu.length > 0 && (
+                  <ul className="flex flex-col gap-1.5 max-h-56 overflow-y-auto">
+                    {luotThu.map((l, i) => (
+                      <li
+                        key={l.id}
+                        className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm border-b border-ke pb-1.5"
+                      >
+                        <span className="so text-muc-mo">#{luotThu.length - i}</span>
+                        <span className="text-muc-nhat">
+                          thật: <strong>{l.nhanThat}</strong>
+                        </span>
+                        <span className={l.aNhan === l.nhanThat ? 'text-dung' : 'text-loi'}>
+                          A: {l.aNhan} ({phanTram(l.aTinCay)}%){' '}
+                          {l.aNhan === l.nhanThat ? '✅' : '❌'}
+                        </span>
+                        <span className={l.bNhan === l.nhanThat ? 'text-dung' : 'text-loi'}>
+                          B: {l.bNhan} ({phanTram(l.bTinCay)}%){' '}
+                          {l.bNhan === l.nhanThat ? '✅' : '❌'}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
 
-                <div className="p-3 rounded-vua bg-giay text-sm text-muc-nhat">
-                  ✨ <strong>Ưu điểm:</strong> Nhận diện vững vàng kể cả khi bút bị nghiêng, bóng đổ hoặc đặt lẫn trên bề mặt có vân.
-                </div>
+                {diem.tong >= SO_LUOT_KET_LUAN && (
+                  <div className="p-4 rounded-vua bg-nhan-nen border border-ke flex flex-col gap-1.5">
+                    <strong className="text-base text-muc">
+                      Sau {diem.tong} lượt: A đúng {tiLe(diem.a)}%, B đúng {tiLe(diem.b)}%.
+                    </strong>
+                    <p className="text-base text-muc-nhat">
+                      {diem.b > diem.a
+                        ? 'Mô hình học nhiều ảnh đoán đúng nhiều hơn. Cùng một thuật toán, chỉ khác dữ liệu — dữ liệu chính là thứ tạo ra khác biệt.'
+                        : diem.b === diem.a
+                          ? 'Hai bên hoà. Thử thêm những góc khó: nghiêng vật, che một phần, đổi nền — chỗ đó mô hình ít ảnh mới lộ ra.'
+                          : 'Lần này mô hình ít ảnh lại thắng. Ghi lại các lượt và cùng bàn xem vì sao — kết quả bất ngờ cũng là dữ liệu.'}
+                    </p>
+                  </div>
+                )}
               </div>
-
-              <div className="text-sm text-muc-mo text-right">
-                Độ chính xác tích lũy: {Math.round((scores.modelB / scores.total) * 100)}%
-              </div>
-            </div>
+            </section>
           </div>
 
-          {/* Pedagogical Conclusion Box */}
-          <div className="bg-nhan-nen p-6 rounded-to border border-ke flex items-start gap-4">
-<span className="text-[24px] shrink-0 mt-0.5" aria-hidden="true">🎓</span>
-            <div className="flex flex-col gap-1.5">
-              <h4 className="text-base font-semibold text-toi">
-                Ghi nhớ thực nghiệm cho học sinh (YCCĐ 6.C1.1)
-              </h4>
-              <p className="text-sm sm:text-base text-muc leading-relaxed">
-                Để AI "thông minh", không chỉ cần nạp <strong>nhiều</strong> ảnh, mà ảnh phải <strong>đa dạng</strong> (nhiều góc nghiêng, khoảng cách, ánh sáng khác nhau). Nếu chỉ chụp 50 bức ảnh giống hệt nhau một góc độ, máy vẫn sẽ đoán sai khi ra ngoài đời thật!
+          <div className="the p-5 flex items-start gap-3">
+            <span className="text-[24px] shrink-0" aria-hidden="true">🎓</span>
+            <div className="flex flex-col gap-1">
+              <h4 className="text-base font-semibold text-muc">Ghi nhớ (YCCĐ 6.C1.1)</h4>
+              <p className="text-base text-muc-nhat leading-relaxed">
+                Hai mô hình dùng cùng một thuật toán. Thứ duy nhất khác nhau là{' '}
+                <strong>dữ liệu đã học</strong>. Muốn máy giỏi thì ảnh phải vừa nhiều vừa{' '}
+                <strong>đa dạng</strong> — 50 tấm chụp giống hệt một góc cũng không hơn 5 tấm là bao.
               </p>
             </div>
           </div>

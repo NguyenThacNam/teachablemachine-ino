@@ -37,6 +37,29 @@ export interface MoHinhLab {
 /** Mô hình đã có file trong máy, học sinh chọn được ngay */
 export const MO_HINH: MoHinhLab[] = [
   {
+    id: 'but-tay-ghim-50anh',
+    ten: 'Đồ vật — đầy đủ dữ liệu (50 ảnh mỗi nhãn)',
+    nguon: '/models/but-tay-ghim-50anh/',
+    nhan: ['Bút', 'Tẩy', 'Ghim'],
+    soAnhMoiNhan: 50,
+    dayGi:
+      'Vế "nhiều dữ liệu" của Trạm 3. Học đủ góc và đủ kiểu nên đoán chắc tay ' +
+      'kể cả khi vật nghiêng hoặc bị che một phần.',
+    dungO: ['Trạm 3 · So sánh hai mô hình'],
+  },
+  {
+    id: 'but-tay-ghim-5anh',
+    ten: 'Đồ vật — thiếu dữ liệu (5 ảnh mỗi nhãn)',
+    nguon: '/models/but-tay-ghim-5anh/',
+    nhan: ['Bút', 'Tẩy', 'Ghim'],
+    soAnhMoiNhan: 5,
+    thienLech: 'thieu-du-lieu',
+    dayGi:
+      'Cùng ba nhãn với mô hình trên, chỉ khác số ảnh đã học. Đặt cạnh nhau là ' +
+      'học sinh thấy ngay: dữ liệu ít thì máy đoán chập chờn, đổi góc một chút đã sai.',
+    dungO: ['Trạm 3 · So sánh hai mô hình'],
+  },
+  {
     id: 'but-tay-thuocke',
     ten: 'Đồ dùng học tập — Bút · Tẩy · Thước kẻ',
     nguon: '/models/but_tay_thuocke/',
@@ -61,22 +84,6 @@ export interface MoHinhDuKien {
 }
 
 export const MO_HINH_DU_KIEN: MoHinhDuKien[] = [
-  {
-    ten: 'Đồ vật — đầy đủ dữ liệu',
-    nhan: ['Bút', 'Sách', 'Tẩy'],
-    duLieu: '50 ảnh mỗi nhãn, đủ góc và ánh sáng',
-    dayGi: 'Vế "nhiều dữ liệu" trong phép so sánh của Trạm 3.',
-    dungO: ['Trạm 3 · So sánh hai mô hình'],
-  },
-  {
-    ten: 'Đồ vật — thiếu dữ liệu',
-    nhan: ['Bút', 'Sách', 'Tẩy'],
-    duLieu: 'Chỉ 5 ảnh mỗi nhãn',
-    dayGi:
-      'Đặt cạnh mô hình đầy đủ để học sinh thấy tận mắt: cùng một vật, ' +
-      'mô hình học ít ảnh thì đoán chập chờn hẳn.',
-    dungO: ['Trạm 3 · So sánh hai mô hình'],
-  },
   {
     ten: 'Đồ vật — lệch màu',
     nhan: ['Bút', 'Sách'],
@@ -110,6 +117,12 @@ export const MO_HINH_DU_KIEN: MoHinhDuKien[] = [
     dungO: ['Khối 8 tuần 16'],
   },
 ];
+
+/** Cặp mô hình Trạm 3 so sánh: cùng nhãn, chỉ khác số ảnh đã học */
+export const CAP_SO_SANH = {
+  itAnh: 'but-tay-ghim-5anh',
+  nhieuAnh: 'but-tay-ghim-50anh',
+} as const;
 
 export function timMoHinh(id: string): MoHinhLab | undefined {
   return MO_HINH.find((m) => m.id === id);

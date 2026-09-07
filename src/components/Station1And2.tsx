@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import confetti from 'canvas-confetti';
 import { MO_HINH } from '../data/models';
+import { useCamera } from '../hooks/useCamera';
 import { useDuDoan } from '../hooks/useDuDoan';
 import { ChonMoHinh } from './ChonMoHinh';
 
@@ -51,8 +52,9 @@ export const Station1And2: React.FC<Station1And2Props> = ({
   const [isCameraRunning, setIsCameraRunning] = useState(false);
   const [isFrozen, setIsFrozen] = useState(false);
   const [isFrontCamera, setIsFrontCamera] = useState(false);
-  const [loiCamera, setLoiCamera] = useState<string | null>(null);
-  const videoRef = useRef<HTMLVideoElement>(null);
+  const { videoRef, loi: loiCamera } = useCamera(isCameraRunning, isFrontCamera, () =>
+    setIsCameraRunning(false),
+  );
 
   // Trạm 2 — thử thách đánh lừa
   const [nhanThat, setNhanThat] = useState<string>('');
@@ -75,50 +77,6 @@ export const Station1And2: React.FC<Station1And2Props> = ({
       fps: 8,
     },
   );
-
-  // Luồng camera
-  useEffect(() => {
-    if (!isCameraRunning) return;
-
-    let huy = false;
-    let stream: MediaStream | null = null;
-
-    const dung = () => {
-      stream?.getTracks().forEach((t) => t.stop());
-      stream = null;
-    };
-
-    navigator.mediaDevices
-      ?.getUserMedia({ video: { facingMode: isFrontCamera ? 'user' : 'environment' } })
-      .then((s) => {
-        stream = s;
-        // Rời trạm trong lúc chờ cấp quyền: phải tắt ngay, nếu không đèn
-        // camera của máy tính bảng sẽ sáng cho tới khi đóng tab.
-        if (huy) {
-          dung();
-          return;
-        }
-        setLoiCamera(null);
-        if (videoRef.current) videoRef.current.srcObject = s;
-      })
-      .catch((err: unknown) => {
-        if (huy) return;
-        const ten = err instanceof Error ? err.name : '';
-        setLoiCamera(
-          ten === 'NotAllowedError'
-            ? 'Em chưa cho phép dùng camera. Hãy bấm vào biểu tượng ổ khoá trên thanh địa chỉ và chọn "Cho phép".'
-            : ten === 'NotFoundError'
-              ? 'Máy này không tìm thấy camera nào.'
-              : 'Không mở được camera. Trang phải chạy trên HTTPS thì trình duyệt mới cho phép.',
-        );
-        setIsCameraRunning(false);
-      });
-
-    return () => {
-      huy = true;
-      dung();
-    };
-  }, [isCameraRunning, isFrontCamera]);
 
   // Phát hiện "đã lừa được AI": mô hình nói sai nhãn thật, mà lại rất tự tin
   const daLuaDuoc =
