@@ -1,0 +1,276 @@
+@import "tailwindcss";
+
+/* =========================================================================
+   PHÒNG LAB AI — HỆ THỐNG THỊ GIÁC "SỔ TAY THÍ NGHIỆM"
+
+   Nguyên tắc:
+   1. Tương phản cao — phòng học nhiều ánh sáng, máy tính bảng chói
+   2. Phẳng — đường kẻ thay cho đổ bóng, thẻ không lồng trong thẻ
+   3. Chữ to — nội dung tối thiểu 16px theo quy định của PTTK
+   4. Một màu nhấn — xanh mực cho máy nói, cam cho thử thách, còn lại là xám
+   5. Đậm có chọn lọc — chỉ tiêu đề và con số, không đậm tràn lan
+   ========================================================================= */
+
+@theme {
+  /* Giấy và mực */
+  --color-giay: #f4f2ed;
+  --color-the: #ffffff;
+  --color-muc: #16181d;
+  --color-muc-nhat: #565c68;
+  --color-muc-mo: #7c828e;
+
+  /* Đường kẻ — thay cho đổ bóng */
+  --color-ke: #ddd9d0;
+  --color-ke-dam: #b6b1a6;
+
+  /* Nền tối — chỉ dùng cho khung camera, hình ảnh cần nền tối mới đúng màu */
+  --color-toi: #1b1d21;
+  --color-toi-nhat: #2c2f35;
+  --color-toi-chu: #e8e6e1;
+
+  /* Màu nhấn: mực xanh — dùng cho máy nói và thao tác chính */
+  --color-nhan: #14459b;
+  --color-nhan-dam: #0e3374;
+  --color-nhan-nen: #e8eefb;
+
+  /* Thử thách / cảnh báo */
+  --color-thu: #9a5300;
+  --color-thu-nen: #fbf0df;
+
+  /* Lỗi */
+  --color-loi: #a52019;
+  --color-loi-nen: #fbeceb;
+
+  /* Đúng */
+  --color-dung: #16653c;
+  --color-dung-nen: #e5f3ea;
+
+  /* Màu cột cho thanh phần trăm — phải phân biệt được, kể cả khi in đen trắng
+     thì độ đậm nhạt vẫn khác nhau */
+  --color-cot-1: #14459b;
+  --color-cot-2: #9a5300;
+  --color-cot-3: #1c6b57;
+  --color-cot-4: #6b2f8f;
+  --color-cot-5: #8a1f38;
+
+  /* Bo góc — ba cấp, không bo tròn tất cả như nhau */
+  --radius-nho: 5px;
+  --radius-vua: 9px;
+  --radius-to: 13px;
+
+  --font-sans: "Plus Jakarta Sans", ui-sans-serif, system-ui, "Segoe UI", Roboto, sans-serif;
+  --font-mono: "Space Grotesk", ui-monospace, "Cascadia Mono", Consolas, monospace;
+}
+
+@layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    font-family: var(--font-sans);
+    background-color: var(--color-giay);
+    color: var(--color-muc);
+    font-size: 1rem;
+    line-height: 1.55;
+
+    /* Giấy kẻ ô — dấu hiệu "sổ tay thí nghiệm", nằm dưới mọi thẻ đục */
+    background-image:
+      linear-gradient(to right, rgba(22, 24, 29, 0.045) 1px, transparent 1px),
+      linear-gradient(to bottom, rgba(22, 24, 29, 0.045) 1px, transparent 1px);
+    background-size: 26px 26px;
+  }
+
+  h1, h2, h3, h4 {
+    line-height: 1.25;
+    letter-spacing: -0.012em;
+  }
+
+  /* Vùng chạm tối thiểu cho máy tính bảng, áp cho mọi nút và ô nhập */
+  button, select, input, a[role="button"] {
+    min-height: 44px;
+  }
+
+  :focus-visible {
+    outline: 3px solid var(--color-nhan);
+    outline-offset: 2px;
+  }
+}
+
+@layer components {
+  /* --- Thẻ: một cấp duy nhất, viền kẻ thay đổ bóng --- */
+  .the {
+    background: var(--color-the);
+    border: 1px solid var(--color-ke);
+    border-radius: var(--radius-to);
+  }
+
+  /* Thẻ lồng bên trong thẻ: không viền, chỉ đổi nền */
+  .o-trong {
+    background: var(--color-giay);
+    border-radius: var(--radius-vua);
+  }
+
+  /* --- Nhãn mục: gạch chân dày kiểu tiêu đề mục trong sổ --- */
+  .nhan-muc {
+    display: flex;
+    align-items: baseline;
+    gap: 0.6rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 2px solid var(--color-muc);
+    font-weight: 700;
+    font-size: 1.0625rem;
+  }
+
+  .nhan-muc-so {
+    font-family: var(--font-mono);
+    font-size: 0.8125rem;
+    color: var(--color-muc-mo);
+    letter-spacing: 0.04em;
+  }
+
+  /* --- Nút --- */
+  .nut {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 0.6rem 1.1rem;
+    border-radius: var(--radius-nho);
+    border: 1px solid var(--color-ke-dam);
+    background: var(--color-the);
+    color: var(--color-muc);
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background-color 0.12s, border-color 0.12s;
+  }
+
+  .nut:hover:not(:disabled) {
+    background: var(--color-giay);
+    border-color: var(--color-muc-mo);
+  }
+
+  .nut:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+  }
+
+  .nut-chinh {
+    background: var(--color-nhan);
+    border-color: var(--color-nhan);
+    color: #fff;
+  }
+
+  .nut-chinh:hover:not(:disabled) {
+    background: var(--color-nhan-dam);
+    border-color: var(--color-nhan-dam);
+  }
+
+  .nut-thu {
+    background: var(--color-thu);
+    border-color: var(--color-thu);
+    color: #fff;
+  }
+
+  .nut-thu:hover:not(:disabled) {
+    background: #7d4300;
+    border-color: #7d4300;
+  }
+
+  /* Nút đang được chọn trong một nhóm */
+  .nut-dang-chon {
+    background: var(--color-nhan-nen);
+    border-color: var(--color-nhan);
+    color: var(--color-nhan-dam);
+  }
+
+  /* --- Chip: chỉ dùng cho trạng thái, không dùng để trang trí --- */
+  .chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.2rem 0.6rem;
+    border-radius: var(--radius-nho);
+    border: 1px solid var(--color-ke-dam);
+    background: var(--color-giay);
+    font-size: 0.875rem;
+    font-weight: 600;
+    line-height: 1.5;
+    min-height: 0;
+  }
+
+  /* --- Số đo: monospace có lý do — cột số thẳng hàng, không nhảy --- */
+  .so {
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* --- Ô nhập --- */
+  .o-nhap {
+    width: 100%;
+    padding: 0.6rem 0.9rem;
+    border: 1px solid var(--color-ke-dam);
+    border-radius: var(--radius-nho);
+    background: var(--color-the);
+    font-size: 1rem;
+    color: var(--color-muc);
+  }
+
+  .o-nhap::placeholder {
+    color: var(--color-muc-mo);
+  }
+}
+
+/* =========================================================================
+   IN PHIẾU HỌC TẬP
+   Trước đây window.print() in cả thanh điều hướng vì không có quy tắc in.
+   ========================================================================= */
+@media print {
+  body {
+    background: #fff;
+    background-image: none;
+  }
+
+  .khong-in {
+    display: none !important;
+  }
+
+  /* Khi có vùng đánh dấu .chi-in thì chỉ in đúng vùng đó.
+     .chi-in nằm lồng sâu trong #root nên phải ẩn bằng visibility, không thể
+     ẩn bằng display ở cấp con của body. */
+  body:has(.chi-in) * {
+    visibility: hidden;
+  }
+
+  body:has(.chi-in) .chi-in,
+  body:has(.chi-in) .chi-in * {
+    visibility: visible;
+  }
+
+  body:has(.chi-in) .chi-in {
+    position: absolute !important;
+    left: 0;
+    top: 0;
+    width: 100%;
+    max-height: none !important;
+    overflow: visible !important;
+    padding: 0 !important;
+    border: none !important;
+    background: #fff !important;
+  }
+
+  .chi-in,
+  .chi-in * {
+    box-shadow: none !important;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
