@@ -46,6 +46,11 @@ export const MO_HINH: MoHinhLab[] = [
       'Vế "nhiều dữ liệu" của Trạm 3. Học đủ góc và đủ kiểu nên đoán chắc tay ' +
       'kể cả khi vật nghiêng hoặc bị che một phần.',
     dungO: ['Trạm 3 · So sánh hai mô hình'],
+    // LƯU Ý: bộ này gom từ ảnh sản phẩm trên mạng, không phải ảnh chụp webcam.
+    // Học sinh thử bằng camera máy tính bảng nên đây là hai miền dữ liệu khác
+    // nhau — mô hình có thể ngập ngừng dù đã học nhiều ảnh. Muốn Trạm 3 ra đúng
+    // chiều bài học thì cả hai bộ phải chụp lại bằng nút Webcam của Teachable
+    // Machine, trên bàn học thật, chỉ khác nhau ở số lượng và độ đa dạng.
   },
   {
     id: 'but-tay-ghim-5anh',

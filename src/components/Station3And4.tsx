@@ -18,8 +18,22 @@ const SO_LUOT_KET_LUAN = 10;
 
 /** Hai cột so sánh của Trạm 3 — màu và lời mô tả cố định */
 const THE_MO_HINH = [
-  { ma: 'A', thanh: 'bg-cot-5', chu: 'text-cot-5', ghiChu: 'Học ít ảnh, dễ lung lay' },
-  { ma: 'B', thanh: 'bg-cot-1', chu: 'text-cot-1', ghiChu: 'Học nhiều ảnh, vững hơn' },
+  {
+    ma: 'A',
+    thanh: 'bg-cot-5',
+    chu: 'text-cot-5',
+    nen: 'bg-cot-5',
+    nhanDL: 'ÍT DỮ LIỆU',
+    ghiChu: 'Học ít ảnh nên hay lung lay: đổi góc một chút là độ tin cậy tụt.',
+  },
+  {
+    ma: 'B',
+    thanh: 'bg-cot-1',
+    chu: 'text-cot-1',
+    nen: 'bg-cot-1',
+    nhanDL: 'NHIỀU DỮ LIỆU',
+    ghiChu: 'Học nhiều ảnh nên vững hơn: xoay nghiêng hay che bớt vẫn nhận ra.',
+  },
 ] as const;
 
 interface Station3And4Props {
@@ -235,18 +249,25 @@ export const Station3And4: React.FC<Station3And4Props> = ({
                   const mh = cot.ma === 'A' ? moHinhA : moHinhB;
                   return (
                     <div key={cot.ma} className="the p-5 flex flex-col gap-3">
-                      <div className="flex items-baseline justify-between gap-2">
-                        <h3 className="text-lg font-semibold text-muc">
-                          Mô hình {cot.ma}
-                          <span className="so text-sm text-muc-mo ml-2">
-                            {mh?.soAnhMoiNhan} ảnh/nhãn
-                          </span>
-                        </h3>
+                      <div className="flex items-center justify-between gap-2">
+                        <span
+                          className={`${cot.nen} text-white text-sm font-semibold px-2.5 py-1 rounded-nho`}
+                        >
+                          {cot.nhanDL}
+                        </span>
                         {kq.trangThai === 'dang-nap' && (
                           <span className="text-sm text-muc-mo">⏳ đang nạp…</span>
                         )}
                       </div>
-                      <p className="text-sm text-muc-mo">{cot.ghiChu}</p>
+
+                      <div className="flex flex-col">
+                        <h3 className="text-lg font-semibold text-muc">Mô hình {cot.ma}</h3>
+                        <span className={`so text-2xl font-bold ${cot.chu}`}>
+                          {mh?.soAnhMoiNhan} ảnh mỗi nhãn
+                        </span>
+                      </div>
+
+                      <p className="text-sm text-muc-nhat">{cot.ghiChu}</p>
 
                       {kq.nhanCaoNhat ? (
                         <>
