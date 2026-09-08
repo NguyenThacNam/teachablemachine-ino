@@ -256,7 +256,7 @@ export const Station1And2: React.FC<Station1And2Props> = ({
                 Mô hình cắt vuông ở giữa khung hình rồi thu về 224×224 — vẽ đúng
                 ô đó thì học sinh biết phải đặt vật vào đâu. */}
             {isCameraRunning && (
-              <div className="relative z-10 self-center my-auto h-[78%] aspect-square border border-toi-chu/70 pointer-events-none">
+              <div className="relative z-10 self-center my-auto h-full aspect-square border border-toi-chu/70 pointer-events-none">
                 <span className="so absolute -top-px left-0 bg-toi/85 text-toi-chu text-sm px-2 py-0.5">
                   vùng máy nhìn · 224×224
                 </span>

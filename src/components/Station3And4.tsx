@@ -175,7 +175,7 @@ export const Station3And4: React.FC<Station3And4Props> = ({
                   </div>
                 )}
                 {camBat && (
-                  <div className="relative z-10 h-[78%] aspect-square border border-toi-chu/70 pointer-events-none" />
+                  <div className="relative z-10 h-full aspect-square border border-toi-chu/70 pointer-events-none" />
                 )}
               </div>
 

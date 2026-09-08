@@ -99,6 +99,8 @@ export default function App() {
                 ? 'tram-6'
                 : 'tram-5'
             }
+            modelId={modelId}
+            onChangeModel={setModelId}
             onBack={() => handleNavigate('home')}
           />
         )}

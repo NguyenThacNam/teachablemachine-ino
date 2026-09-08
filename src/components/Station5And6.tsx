@@ -1,28 +1,107 @@
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { FLASHCARDS } from '../data/flashcards';
 import { Visitor, GameLogEntry } from '../types';
 import confetti from 'canvas-confetti';
+import { MO_HINH } from '../data/models';
+import { useCamera } from '../hooks/useCamera';
+import { useDuDoan } from '../hooks/useDuDoan';
+import { ChonMoHinh } from './ChonMoHinh';
+
+/** Số lần đoán gần nhất dùng để tính tỉ lệ máy dám trả lời */
+const CUA_SO_LICH_SU = 30;
+
+/**
+ * Hai tình huống trái ngược nhau — cùng một mô hình, cùng một con số, nhưng
+ * cái giá của việc đoán sai khác hẳn nhau, nên ngưỡng hợp lý cũng khác.
+ */
+const TINH_HUONG = [
+  {
+    id: 'khoa-cua' as const,
+    ten: '🔒 Khoá cửa lớp học',
+    nguongGoiY: 90,
+    moTa:
+      'Máy này mở cửa lớp. Đoán sai thì người lạ vào được phòng — hậu quả nặng, ' +
+      'nên thà chặn nhầm bạn quen còn hơn cho lọt người lạ.',
+    khiHanhDong: 'Cửa mở. Máy đủ chắc chắn để chịu trách nhiệm cho việc này.',
+    khiTuChoi:
+      'Cửa vẫn khoá, máy gọi bảo vệ đến xem. Bất tiện, nhưng an toàn — với cái cửa thì ' +
+      'đánh đổi này đáng.',
+  },
+  {
+    id: 'goi-y' as const,
+    ten: '📚 Gợi ý sách trong thư viện',
+    nguongGoiY: 45,
+    moTa:
+      'Máy này gợi ý sách cho em mượn. Đoán sai thì cùng lắm gợi ý nhầm một quyển — ' +
+      'em bỏ qua là xong, chẳng mất gì.',
+    khiHanhDong: 'Máy gợi ý luôn. Sai thì em lướt qua, không sao cả.',
+    khiTuChoi:
+      'Máy im lặng, không gợi ý gì. Đặt ngưỡng cao quá ở đây lại thành dở — máy ' +
+      'chẳng giúp được gì mà cũng không tránh được hậu quả nào.',
+  },
+];
 
 interface Station5And6Props {
   initialSubStation?: 'tram-5' | 'tro-choi-cua' | 'tram-6';
+  /** Mô hình đang chọn, giữ ở App để không mất khi chuyển trạm */
+  modelId: string;
+  onChangeModel: (id: string) => void;
   onBack: () => void;
 }
 
 export const Station5And6: React.FC<Station5And6Props> = ({
   initialSubStation = 'tram-5',
+  modelId,
+  onChangeModel,
   onBack,
 }) => {
   const [activeTab, setActiveTab] = useState<'tram-5' | 'tro-choi-cua' | 'tram-6'>(initialSubStation);
 
-  // Station 5 States
-  const [threshold, setThreshold] = useState<number>(80);
-  const [scenario, setScenario] = useState<'vault' | 'library'>('vault');
-  const [sampleConfidence, setSampleConfidence] = useState<number>(84);
+  // ---- Trạm 5: độ tin cậy lấy từ mô hình thật, không còn số bấm sẵn ----
+  const [nguong, setNguong] = useState<number>(90);
+  const [tinhHuong, setTinhHuong] = useState<'khoa-cua' | 'goi-y'>('khoa-cua');
+  const [camBat, setCamBat] = useState(false);
+  const [camTruoc, setCamTruoc] = useState(false);
+  const [lichSu, setLichSu] = useState<number[]>([]);
+
+  const { videoRef, loi: loiCamera } = useCamera(camBat, camTruoc, () => setCamBat(false));
+
+  const nguonMoHinh = MO_HINH.find((m) => m.id === modelId)?.nguon ?? null;
+  const { trangThai, loi, nhanCaoNhat } = useDuDoan(nguonMoHinh, videoRef, {
+    dangChay: camBat,
+    lat: camTruoc,
+    fps: 6,
+  });
+
+  // Ghi lại độ tin cậy của những lần đoán gần đây, để kéo thanh ngưỡng là thấy
+  // ngay tỉ lệ đổi mà không phải đưa vật mới vào.
+  useEffect(() => {
+    if (!nhanCaoNhat) return;
+    setLichSu((prev) => [...prev, nhanCaoNhat.probability].slice(-CUA_SO_LICH_SU));
+  }, [nhanCaoNhat]);
+
+  const thText = TINH_HUONG.find((t) => t.id === tinhHuong)!;
+  const vuotNguong = !!nhanCaoNhat && nhanCaoNhat.probability * 100 >= nguong;
+  const phanTram = (p: number) => (p * 100).toFixed(1);
+  const tiLeVuot = useMemo(() => {
+    if (lichSu.length === 0) return 0;
+    return Math.round((lichSu.filter((c) => c * 100 >= nguong).length / lichSu.length) * 100);
+  }, [lichSu, nguong]);
 
   // Gatekeeper Game States
   const [gameThreshold, setGameThreshold] = useState<number>(75);
   const [doorStatus, setDoorStatus] = useState<'locked' | 'opened'>('locked');
   const [isSimulating, setIsSimulating] = useState(false);
+  // Giữ id các hẹn giờ của trò Khoá cửa. Không dọn thì bấm chạy hai lần sẽ có
+  // hai kịch bản đan vào nhau, và rời trạm giữa chừng vẫn còn setState.
+  const henGioRef = useRef<number[]>([]);
+
+  const donHenGio = () => {
+    henGioRef.current.forEach(window.clearTimeout);
+    henGioRef.current = [];
+  };
+
+  useEffect(() => donHenGio, []);
   const [gameLogs, setGameLogs] = useState<GameLogEntry[]>([
     {
       id: '1',
@@ -65,6 +144,7 @@ export const Station5And6: React.FC<Station5And6Props> = ({
   const [currentCardIndex, setCurrentCardIndex] = useState<number>(0);
 
   const handleRunSimulation = () => {
+    donHenGio();
     setIsSimulating(true);
     setGameLogs([]);
 
@@ -84,7 +164,7 @@ export const Station5And6: React.FC<Station5And6Props> = ({
     let totalFriends = 5;
 
     visitors.forEach((v, index) => {
-      setTimeout(() => {
+      const id = window.setTimeout(() => {
         const opens = v.matchProb >= gameThreshold;
         setDoorStatus(opens ? 'opened' : 'locked');
 
@@ -149,6 +229,7 @@ export const Station5And6: React.FC<Station5And6Props> = ({
           });
         }
       }, (index + 1) * 600);
+      henGioRef.current.push(id);
     });
   };
 
@@ -215,178 +296,225 @@ export const Station5And6: React.FC<Station5And6Props> = ({
       </div>
 
       {activeTab === 'tram-5' ? (
-        /* STATION 5: THRESHOLD SLIDER & HUMAN DECISION */
+        /* TRẠM 5 — NGƯỠNG TIN CẬY, ĐO TRÊN DỰ ĐOÁN THẬT */
         <div className="flex flex-col gap-6">
-          <div className="bg-the p-6 rounded-to border border-ke flex flex-col md:flex-row md:items-center justify-between gap-4">
-            <div className="flex flex-col gap-1">
-              <div className="flex items-center gap-2">
-                <span className="px-2.5 py-0.5 rounded-nho bg-ke text-nhan-dam text-sm font-semibold">
-                  YCCĐ: 7.C5.1
-                </span>
-                <span className="text-sm text-muc-mo font-semibold">Ra Quyết Định Trong AI</span>
-              </div>
-              <h2 className="text-xl sm:text-2xl font-semibold text-toi">
-                Thanh Trượt Ngưỡng Tin Cậy (Confidence Threshold)
-              </h2>
-              <p className="text-sm sm:text-base text-muc-nhat">
-                AI chỉ đưa ra điểm số xác suất. Con người quyết định đặt mức bao nhiêu để hệ thống được phép hành động!
-              </p>
+          <div className="the p-6 flex flex-col gap-2">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="chip">YCCĐ 7.C5.1</span>
+              <span className="chip">6.A1.2</span>
             </div>
-
-            {/* Scenario toggle */}
-            <div className="flex items-center gap-2 bg-nhan-nen p-1.5 rounded-to border border-ke shrink-0">
-              <button
-                onClick={() => {
-                  setScenario('vault');
-                  setThreshold(90);
-                }}
-                className={`px-3 py-2 rounded-vua text-sm font-semibold transition-all cursor-pointer ${
- scenario === 'vault' ? 'bg-the text-nhan-dam' : 'text-muc-nhat'
- }`}
-                type="button"
-              >
-                🏦 Phòng Giữ Kho Báu (Nguy cấp)
-              </button>
-              <button
-                onClick={() => {
-                  setScenario('library');
-                  setThreshold(60);
-                }}
-                className={`px-3 py-2 rounded-vua text-sm font-semibold transition-all cursor-pointer ${
- scenario === 'library' ? 'bg-the text-nhan-dam' : 'text-muc-nhat'
- }`}
-                type="button"
-              >
-                📚 Thư Viện Đọc Truyện (Thân thiện)
-              </button>
-            </div>
+            <h2 className="text-xl sm:text-2xl font-semibold text-muc">
+              Ngưỡng tin cậy — khi nào máy được phép hành động
+            </h2>
+            <p className="text-base text-muc-nhat">
+              Máy không trả lời đúng hay sai. Nó chỉ đưa ra một con số. Đặt mức bao nhiêu thì máy
+              được phép hành động — đó là quyết định của <strong>con người</strong>.
+            </p>
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-            {/* Left controller: Slider */}
-            <div className="lg:col-span-6 bg-white p-6 rounded-to border border-ke flex flex-col justify-between gap-6">
-              <div className="flex flex-col gap-4">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-base font-semibold text-toi">1. Điều chỉnh Ngưỡng Chấp Nhận:</h3>
-                  <span className="text-3xl font-bold text-nhan">{threshold}%</span>
-                </div>
+          <ChonMoHinh giaTri={modelId} onChange={onChangeModel} />
 
-                {/* Tactile Slider */}
-                <div className="flex flex-col gap-2">
-                  <input
-                    type="range"
-                    min="30"
-                    max="95"
-                    step="1"
-                    value={threshold}
-                    onChange={(e) => setThreshold(Number(e.target.value))}
-                    className="w-full h-3 bg-ke rounded-nho appearance-none cursor-pointer accent-nhan"
-                  />
-                  <div className="flex justify-between text-sm text-muc-mo">
-                    <span>30% (Dễ tính)</span>
-                    <span>60% (Trung bình)</span>
-                    <span>80% (Khắt khe)</span>
-                    <span>95% (Cực kỳ an toàn)</span>
+          {trangThai === 'loi' && loi && (
+            <div className="p-4 rounded-vua bg-loi-nen border border-loi text-loi text-base">⚠️ {loi}</div>
+          )}
+
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+            {/* Camera */}
+            <section className="lg:col-span-5 flex flex-col gap-4">
+              <div className="relative w-full aspect-[4/3] rounded-to bg-toi overflow-hidden border border-toi-nhat flex items-center justify-center">
+                <video
+                  ref={videoRef}
+                  autoPlay
+                  playsInline
+                  muted
+                  className={`absolute inset-0 w-full h-full object-cover ${
+                    camTruoc ? 'scale-x-[-1]' : ''
+                  } ${camBat ? '' : 'hidden'}`}
+                />
+                {!camBat && (
+                  <div className="relative z-10 flex flex-col items-center gap-3 px-6 text-center">
+                    <span className="text-[48px]" aria-hidden="true">📷</span>
+                    <p className="text-base text-toi-chu">Bật camera để lấy độ tin cậy thật</p>
+                    {loiCamera && <p className="text-sm text-toi-chu opacity-80">{loiCamera}</p>}
                   </div>
-                </div>
-
-                <div className="p-4 rounded-to bg-giay border border-ke text-sm text-muc-nhat leading-relaxed">
-                  💡 <strong>Quy tắc hệ thống:</strong> Nếu độ chắc chắn của AI{' '}
-                  <span className="font-semibold text-toi">≥ {threshold}%</span>, hệ thống tự động mở cửa. Nếu{' '}
-                  <span className="font-semibold text-toi">&lt; {threshold}%</span>, máy từ chối và báo{' '}
-                  <strong>"Em không chắc"</strong>.
-                </div>
-              </div>
-
-              {/* Sample Selector */}
-              <div className="flex flex-col gap-2">
-                <span className="text-sm font-semibold text-muc">2. Chọn mẫu thử nghiệm trước camera:</span>
-                <div className="grid grid-cols-3 gap-2">
-                  <button
-                    onClick={() => setSampleConfidence(94)}
-                    className={`p-2.5 rounded-vua border text-sm font-semibold transition-all cursor-pointer ${
- sampleConfidence === 94 ? 'bg-nhan-nen border-nhan ring-2 ring-nhan' : 'bg-giay border-ke'
- }`}
-                    type="button"
-                  >
-                    👤 Mặt rõ nét (94%)
-                  </button>
-                  <button
-                    onClick={() => setSampleConfidence(82)}
-                    className={`p-2.5 rounded-vua border text-sm font-semibold transition-all cursor-pointer ${
- sampleConfidence === 82 ? 'bg-nhan-nen border-nhan ring-2 ring-nhan' : 'bg-giay border-ke'
- }`}
-                    type="button"
-                  >
-                    👓 Đeo kính mờ (82%)
-                  </button>
-                  <button
-                    onClick={() => setSampleConfidence(45)}
-                    className={`p-2.5 rounded-vua border text-sm font-semibold transition-all cursor-pointer ${
- sampleConfidence === 45 ? 'bg-nhan-nen border-nhan ring-2 ring-nhan' : 'bg-giay border-ke'
- }`}
-                    type="button"
-                  >
-                    👒 Trùm kín đầu (45%)
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            {/* Right Display: Dual Gauge comparison */}
-            <div className="lg:col-span-6 bg-white p-6 rounded-to border border-ke flex flex-col justify-between gap-6">
-              <div className="flex flex-col gap-4">
-                <h3 className="text-base font-semibold text-toi">2. Quyết Định Thực Thi:</h3>
-
-                {/* Visual meter comparison */}
-                <div className="flex items-center justify-around p-4 bg-giay rounded-to border">
-                  <div className="flex flex-col items-center">
-                    <span className="text-sm font-semibold text-muc-mo">Độ Tin Cậy AI</span>
-                    <span className="text-3xl font-bold text-nhan">{sampleConfidence}%</span>
-                  </div>
-
-                  <span className="text-2xl font-semibold text-muc-mo">
-                    {sampleConfidence >= threshold ? '≥' : '<'}
-                  </span>
-
-                  <div className="flex flex-col items-center">
-                    <span className="text-sm font-semibold text-muc-mo">Ngưỡng Yêu Cầu</span>
-                    <span className="text-3xl font-bold text-muc">{threshold}%</span>
-                  </div>
-                </div>
-
-                {/* State Decision Box */}
-                {sampleConfidence >= threshold ? (
-                  <div className="p-6 rounded-to bg-dung-nen border-2 border-ke-dam flex items-center gap-4">
-                    <span className="text-dung text-[42px] shrink-0" aria-hidden="true">🔒</span>
-                    <div className="flex flex-col">
-                      <span className="text-base font-bold text-dung">
-                        HÀNH ĐỘNG ĐƯỢC DUYỆT: MỞ CỬA TỰ ĐỘNG ✅
-                      </span>
-                      <p className="text-sm text-dung mt-0.5">
-                        Độ tin cậy ({sampleConfidence}%) vượt qua mức an toàn ({threshold}%). Máy tự tin thực thi hành động.
-                      </p>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="p-6 rounded-to bg-thu-nen border-2 border-ke-dam flex items-center gap-4">
-<span className="text-[36px] shrink-0" aria-hidden="true">❓</span>
-                    <div className="flex flex-col">
-                      <span className="text-base font-bold text-thu">
-                        AI BẢO:"EM KHÔNG CHẮC CHẮN!" ⚠️
-                      </span>
-                      <p className="text-sm text-thu mt-0.5">
-                        Độ tin cậy ({sampleConfidence}%) thấp hơn ngưỡng ({threshold}%). Máy dừng lại và yêu cầu bảo vệ con người đến xác nhận!
-                      </p>
-                    </div>
-                  </div>
+                )}
+                {camBat && (
+                  <div className="relative z-10 h-full aspect-square border border-toi-chu/70 pointer-events-none" />
                 )}
               </div>
 
-              <div className="p-3.5 rounded-vua bg-nhan-nen text-sm text-nhan-dam font-medium">
-                🎯 <strong>Bài học rút ra:</strong> Trong đời sống, các hệ thống y tế hoặc xe tự lái đặt ngưỡng rất cao (98-99%) để tránh tai nạn; trong khi bộ lọc tìm kiếm ảnh vui có thể hạ ngưỡng xuống 50%.
+              <div className="grid grid-cols-2 gap-2.5">
+                <button
+                  onClick={() => setCamBat((v) => !v)}
+                  className={`nut ${camBat ? '' : 'nut-chinh'}`}
+                  type="button"
+                >
+                  {camBat ? '⏹ Dừng camera' : '📹 Bật camera'}
+                </button>
+                <button
+                  onClick={() => setCamTruoc((v) => !v)}
+                  disabled={!camBat}
+                  className="nut"
+                  type="button"
+                >
+                  🔄 {camTruoc ? 'Camera trước' : 'Camera sau'}
+                </button>
               </div>
-            </div>
+
+              <div className="the p-5 flex flex-col gap-2">
+                <h3 className="text-base font-semibold text-muc">Thử làm tụt độ tin cậy</h3>
+                <ul className="text-base text-muc-nhat flex flex-col gap-1 list-disc pl-5">
+                  <li>Đưa vật ra thật xa camera</li>
+                  <li>Che một nửa vật bằng bàn tay</li>
+                  <li>Xoay nghiêng cho vật khó nhận ra</li>
+                  <li>Đưa một vật <strong>không có trong danh sách nhãn</strong> vào</li>
+                </ul>
+              </div>
+            </section>
+
+            {/* Thanh ngưỡng và quyết định */}
+            <section className="lg:col-span-7 flex flex-col gap-4">
+              {/* Tình huống */}
+              <div className="the p-5 flex flex-col gap-3">
+                <span className="text-base font-semibold text-muc">Máy này dùng để làm gì?</span>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  {TINH_HUONG.map((t) => (
+                    <button
+                      key={t.id}
+                      onClick={() => {
+                        setTinhHuong(t.id);
+                        setNguong(t.nguongGoiY);
+                      }}
+                      className={`nut text-left ${tinhHuong === t.id ? 'nut-dang-chon' : ''}`}
+                      type="button"
+                    >
+                      {t.ten}
+                    </button>
+                  ))}
+                </div>
+                <p className="text-base text-muc-nhat">{thText.moTa}</p>
+              </div>
+
+              {/* Thanh kéo ngưỡng */}
+              <div className="the p-5 flex flex-col gap-3">
+                <div className="flex items-baseline justify-between">
+                  <label htmlFor="nguong" className="text-base font-semibold text-muc">
+                    Ngưỡng em đặt
+                  </label>
+                  <span className="so text-3xl font-bold text-nhan">{nguong}%</span>
+                </div>
+                <input
+                  id="nguong"
+                  type="range"
+                  min={30}
+                  max={95}
+                  step={1}
+                  value={nguong}
+                  onChange={(e) => setNguong(Number(e.target.value))}
+                  className="w-full accent-nhan cursor-pointer"
+                />
+                <div className="flex justify-between so text-sm text-muc-mo">
+                  <span>30% · máy nói bừa</span>
+                  <span>95% · máy hay im lặng</span>
+                </div>
+              </div>
+
+              {/* Quyết định ngay lúc này */}
+              <div
+                className={`p-6 rounded-to border-2 flex flex-col gap-2 ${
+                  !nhanCaoNhat
+                    ? 'bg-giay border-ke'
+                    : vuotNguong
+                      ? 'bg-dung-nen border-dung'
+                      : 'bg-thu-nen border-thu'
+                }`}
+              >
+                {!nhanCaoNhat ? (
+                  <p className="text-base text-muc-nhat text-center py-4">
+                    {trangThai === 'dang-nap' ? 'Đang chuẩn bị mô hình…' : 'Bật camera và đưa vật vào khung'}
+                  </p>
+                ) : (
+                  <>
+                    <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+                      <span className="text-base text-muc-nhat">Máy tin</span>
+                      <span className="so text-3xl font-bold text-muc">
+                        {phanTram(nhanCaoNhat.probability)}%
+                      </span>
+                      <span className="text-base text-muc-nhat">
+                        rằng đây là <strong className="text-muc">{nhanCaoNhat.label}</strong>
+                      </span>
+                    </div>
+
+                    <div className="so text-base text-muc-nhat">
+                      {phanTram(nhanCaoNhat.probability)}% {vuotNguong ? '≥' : '<'} {nguong}%
+                    </div>
+
+                    {vuotNguong ? (
+                      <div className="flex flex-col gap-1">
+                        <strong className="text-lg text-dung">✅ Máy được phép hành động</strong>
+                        <p className="text-base text-muc">{thText.khiHanhDong}</p>
+                      </div>
+                    ) : (
+                      <div className="flex flex-col gap-1">
+                        <strong className="text-lg text-thu">🤔 Máy nói: "Em không chắc"</strong>
+                        <p className="text-base text-muc">{thText.khiTuChoi}</p>
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
+
+              {/* Thống kê trên các lần đoán gần đây */}
+              {lichSu.length >= 5 && (
+                <div className="the p-5 flex flex-col gap-3">
+                  <div className="flex flex-wrap items-baseline justify-between gap-2">
+                    <h3 className="text-base font-semibold text-muc">
+                      Trong {lichSu.length} lần đoán gần nhất
+                    </h3>
+                    <button onClick={() => setLichSu([])} className="nut" type="button">
+                      Đo lại
+                    </button>
+                  </div>
+
+                  <div className="w-full h-6 rounded-nho overflow-hidden flex border border-ke">
+                    <div
+                      className="bg-dung h-full transition-all duration-200"
+                      style={{ width: `${tiLeVuot}%` }}
+                    />
+                    <div className="bg-thu h-full flex-1 transition-all duration-200" />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="o-trong p-3 flex flex-col items-center">
+                      <span className="so text-2xl font-bold text-dung">{tiLeVuot}%</span>
+                      <span className="text-sm text-muc-nhat text-center">máy dám trả lời</span>
+                    </div>
+                    <div className="o-trong p-3 flex flex-col items-center">
+                      <span className="so text-2xl font-bold text-thu">{100 - tiLeVuot}%</span>
+                      <span className="text-sm text-muc-nhat text-center">máy nói không chắc</span>
+                    </div>
+                  </div>
+
+                  <p className="text-base text-muc-nhat">
+                    Kéo thanh ngưỡng qua lại mà không cần đưa vật mới vào — hai con số này đổi ngay
+                    trên cùng một loạt kết quả. Ngưỡng không làm máy giỏi lên; nó chỉ đổi mức máy
+                    dám nói.
+                  </p>
+                </div>
+              )}
+
+              <div className="the p-5 flex items-start gap-3">
+                <span className="text-[24px] shrink-0" aria-hidden="true">⚖️</span>
+                <div className="flex flex-col gap-1">
+                  <h4 className="text-base font-semibold text-muc">Không có ngưỡng nào đúng cho mọi việc</h4>
+                  <p className="text-base text-muc-nhat leading-relaxed">
+                    Ngưỡng cao thì an toàn nhưng hay chặn nhầm người quen. Ngưỡng thấp thì tiện
+                    nhưng dễ cho lọt. Máy chỉ đưa ra con số — <strong>chọn đánh đổi nào là việc của
+                    con người</strong>.
+                  </p>
+                </div>
+              </div>
+            </section>
           </div>
         </div>
       ) : activeTab === 'tro-choi-cua' ? (
