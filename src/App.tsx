@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { NavPage, GradeFilter } from './types';
 import { MO_HINH } from './data/models';
 import { Header } from './components/Header';
@@ -24,6 +24,16 @@ export default function App() {
   const [isWorksheetOpen, setIsWorksheetOpen] = useState(false);
   const [isLeaderboardOpen, setIsLeaderboardOpen] = useState(false);
   const [resetToast, setResetToast] = useState<string | null>(null);
+
+  // Toast cho các trạm / trò chơi chưa mở. Bấm liên tiếp thì chỉ gia hạn
+  // thời gian hiện, không chồng nhiều toast.
+  const [toastKhoa, setToastKhoa] = useState(false);
+  const henGioToastKhoa = useRef<number | undefined>(undefined);
+  const baoDangPhatTrien = () => {
+    setToastKhoa(true);
+    window.clearTimeout(henGioToastKhoa.current);
+    henGioToastKhoa.current = window.setTimeout(() => setToastKhoa(false), 2500);
+  };
 
   const handleNavigate = (page: NavPage, subStation?: string) => {
     setCurrentPage(page);
@@ -51,6 +61,7 @@ export default function App() {
         currentGrade={currentGrade}
         onChangeGrade={setCurrentGrade}
         onResetSession={handleResetSession}
+        onLocked={baoDangPhatTrien}
       />
 
       {/* Main Content Area with padding for fixed header */}
@@ -71,6 +82,7 @@ export default function App() {
             onChangeGrade={setCurrentGrade}
             onOpenWorksheetModal={() => setIsWorksheetOpen(true)}
             onOpenLeaderboardModal={() => setIsLeaderboardOpen(true)}
+            onLocked={baoDangPhatTrien}
           />
         )}
 
@@ -80,6 +92,7 @@ export default function App() {
             modelId={modelId}
             onChangeModel={setModelId}
             onBack={() => handleNavigate('home')}
+            onLocked={baoDangPhatTrien}
           />
         )}
 
@@ -121,6 +134,16 @@ export default function App() {
           />
         )}
       </main>
+
+      {toastKhoa && (
+        <div
+          role="status"
+          className="khong-in fixed bottom-6 left-1/2 -translate-x-1/2 z-[60] w-[calc(100%-32px)] max-w-md p-4 rounded-to bg-muc text-white font-semibold text-base flex items-center justify-center gap-2 shadow-lg"
+        >
+          <span className="text-[20px]" aria-hidden="true">🚧</span>
+          <span>Chức năng đang được phát triển</span>
+        </div>
+      )}
 
       {/* Footer */}
       <Footer />

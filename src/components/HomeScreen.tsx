@@ -15,7 +15,25 @@ interface HomeScreenProps {
   onChangeGrade: (grade: GradeFilter) => void;
   onOpenWorksheetModal: () => void;
   onOpenLeaderboardModal: () => void;
+  onLocked: () => void;
 }
+
+/** Lớp mờ phủ kín thẻ chưa mở — chạm vào chỗ nào trên thẻ cũng báo "đang phát triển" */
+const LopKhoa: React.FC<{ onClick: () => void }> = ({ onClick }) => (
+  <button
+    onClick={onClick}
+    className="absolute inset-0 z-10 rounded-to bg-giay/60 backdrop-blur-[3px] flex flex-col items-center justify-center gap-2 cursor-pointer"
+    aria-label="Chức năng đang được phát triển"
+    type="button"
+  >
+    <span className="w-14 h-14 rounded-full bg-white border border-ke-dam flex items-center justify-center text-[28px]" aria-hidden="true">
+      🔒
+    </span>
+    <span className="px-3 py-1 rounded-nho bg-white border border-ke text-sm font-semibold text-muc-nhat">
+      Đang phát triển
+    </span>
+  </button>
+);
 
 export const HomeScreen: React.FC<HomeScreenProps> = ({
   onNavigate,
@@ -23,6 +41,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
   onChangeGrade,
   onOpenWorksheetModal,
   onOpenLeaderboardModal,
+  onLocked,
 }) => {
   const [customModelUrl, setCustomModelUrl] = useState('');
   const [loadedModelMsg, setLoadedModelMsg] = useState<string | null>(null);
@@ -133,6 +152,8 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
  : 'border-ke hover:border-ke-dam'
  }`}
             >
+              {station.dangPhatTrien && <LopKhoa onClick={onLocked} />}
+
               {station.isSpecial && (
                 <div className="absolute top-0 right-0 px-3 py-1 bg-thu text-white text-sm font-semibold rounded-bl-2xl rounded-tr-3xl flex items-center gap-1">
                   <span className="text-[14px]" aria-hidden="true">⭐</span>
@@ -302,8 +323,10 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
           {GAMES.map((game) => (
             <div
               key={game.id}
-              className="flex flex-col justify-between p-5 rounded-to bg-white border border-ke hover:border-ke transition-all group"
+              className="relative flex flex-col justify-between p-5 rounded-to bg-white border border-ke hover:border-ke transition-all group"
             >
+              {game.dangPhatTrien && <LopKhoa onClick={onLocked} />}
+
               <div className="flex flex-col gap-3">
                 <div className="flex items-center justify-between">
                   <span className="w-10 h-10 rounded-vua bg-nhan-nen text-nhan-dam flex items-center justify-center group-hover:scale-105 transition-transform">

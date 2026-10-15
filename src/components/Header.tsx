@@ -7,16 +7,17 @@ interface HeaderProps {
   currentGrade: GradeFilter;
   onChangeGrade: (grade: GradeFilter) => void;
   onResetSession: () => void;
+  onLocked: () => void;
 }
 
-const MUC_DIEU_HUONG: { trang: NavPage; ten: string; gomThem?: NavPage[] }[] = [
+const MUC_DIEU_HUONG: { trang: NavPage; ten: string; gomThem?: NavPage[]; khoa?: boolean }[] = [
   { trang: 'home', ten: 'Trang Chủ Chọn Trạm' },
   {
     trang: 'station-1-2',
     ten: '6 Trạm Thí Nghiệm',
     gomThem: ['station-3-4', 'station-5-6'],
   },
-  { trang: 'games', ten: '5 Trò Chơi Khám Phá' },
+  { trang: 'games', ten: '5 Trò Chơi Khám Phá', khoa: true },
   { trang: 'kiem-tra-model', ten: 'Kiểm Tra Mô Hình' },
 ];
 
@@ -28,6 +29,7 @@ export const Header: React.FC<HeaderProps> = ({
   currentGrade,
   onChangeGrade,
   onResetSession,
+  onLocked,
 }) => {
   return (
     // sticky chứ không fixed: thanh này nằm trong luồng nên không bao giờ đè lên
@@ -91,14 +93,17 @@ export const Header: React.FC<HeaderProps> = ({
             return (
               <button
                 key={m.trang}
-                onClick={() => onNavigate(m.trang)}
+                onClick={() => (m.khoa ? onLocked() : onNavigate(m.trang))}
                 className={`min-h-[40px] w-full inline-flex items-center justify-center px-3 rounded-nho text-base font-semibold text-center transition-colors cursor-pointer ${
                   dangMo
                     ? 'bg-nhan text-white'
+                    : m.khoa
+                    ? 'text-muc-mo opacity-60'
                     : 'text-muc-nhat hover:bg-nhan-nen hover:text-nhan-dam'
                 }`}
                 type="button"
               >
+                {m.khoa && <span className="mr-1.5" aria-hidden="true">🔒</span>}
                 {m.ten}
               </button>
             );

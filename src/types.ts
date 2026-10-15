@@ -16,6 +16,8 @@ export interface StationInfo {
   isSpecial?: boolean;
   navTarget: NavPage;
   subStationId?: string;
+  /** Chưa mở cho học sinh: thẻ bị làm mờ, bấm vào chỉ báo "đang phát triển" */
+  dangPhatTrien?: boolean;
 }
 
 export interface GameInfo {
@@ -26,6 +28,8 @@ export interface GameInfo {
   description: string;
   target: string;
   icon: string;
+  /** Chưa mở cho học sinh: thẻ bị làm mờ, bấm vào chỉ báo "đang phát triển" */
+  dangPhatTrien?: boolean;
 }
 
 export interface Flashcard {

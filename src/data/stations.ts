@@ -28,7 +28,8 @@ export const STATIONS: StationInfo[] = [
     icon: '🐞',
     isSpecial: true,
     navTarget: 'station-1-2',
-    subStationId: 'mode-2'
+    subStationId: 'mode-2',
+    dangPhatTrien: true
   },
   {
     id: 'station-3',
@@ -42,7 +43,8 @@ export const STATIONS: StationInfo[] = [
     grades: ['k6', 'k7'],
     icon: '⇄',
     navTarget: 'station-3-4',
-    subStationId: 'station-3'
+    subStationId: 'station-3',
+    dangPhatTrien: true
   },
   {
     id: 'station-4',
@@ -56,7 +58,8 @@ export const STATIONS: StationInfo[] = [
     grades: ['k6', 'k7'],
     icon: '⚖️',
     navTarget: 'station-3-4',
-    subStationId: 'station-4'
+    subStationId: 'station-4',
+    dangPhatTrien: true
   },
   {
     id: 'station-5',
@@ -70,7 +73,8 @@ export const STATIONS: StationInfo[] = [
     grades: ['k7'],
     icon: '🎚️',
     navTarget: 'station-5-6',
-    subStationId: 'tram-5'
+    subStationId: 'tram-5',
+    dangPhatTrien: true
   },
   {
     id: 'station-6',
@@ -84,7 +88,8 @@ export const STATIONS: StationInfo[] = [
     grades: ['k6', 'k8'],
     icon: '❓',
     navTarget: 'station-5-6',
-    subStationId: 'tram-6'
+    subStationId: 'tram-6',
+    dangPhatTrien: true
   }
 ];
 
@@ -96,7 +101,8 @@ export const GAMES: GameInfo[] = [
     badgeColor: 'text-thu bg-thu-nen',
     description: 'Trong 90 giây, tìm càng nhiều cách phá phán đoán của camera càng tốt. Mỗi cách hợp lệ nhận 1 điểm sao.',
     target: 'Mục tiêu: ≥ 4 cách phá',
-    icon: '⏱'
+    icon: '⏱',
+    dangPhatTrien: true
   },
   {
     id: 'game-2',
@@ -105,7 +111,8 @@ export const GAMES: GameInfo[] = [
     badgeColor: 'text-nhan-dam bg-ke',
     description: 'Xem ảnh nhiễu hoặc vật lạ, đoán nhãn sai và khoảng phần trăm độ tin cậy AI sẽ đưa ra trước khi máy chấm.',
     target: 'Độ lệch ≤ 10%: +50đ',
-    icon: '👁️'
+    icon: '👁️',
+    dangPhatTrien: true
   },
   {
     id: 'game-3',
@@ -114,7 +121,8 @@ export const GAMES: GameInfo[] = [
     badgeColor: 'text-nhan-dam bg-ke',
     description: '20 ảnh hỗn hợp: 10 ảnh thông thường máy thắng tốc độ milli-giây, 10 ảnh mẹo người thắng nhờ tư duy ngữ cảnh.',
     target: 'Tỉ số trực tiếp Live',
-    icon: '⚡'
+    icon: '⚡',
+    dangPhatTrien: true
   },
   {
     id: 'game-4',
@@ -123,7 +131,8 @@ export const GAMES: GameInfo[] = [
     badgeColor: 'text-loi bg-loi-nen',
     description: 'Thực hiện 10 phép thử có chủ đích để truy tìm nhóm dữ liệu nào đã bị mô hình bỏ quên hoặc đối xử bất công.',
     target: 'Tìm vết trượt dữ liệu',
-    icon: '🔎'
+    icon: '🔎',
+    dangPhatTrien: true
   },
   {
     id: 'game-5',
@@ -132,6 +141,7 @@ export const GAMES: GameInfo[] = [
     badgeColor: 'text-teal-700 bg-teal-100',
     description: 'Cân não cài đặt ngưỡng: An toàn tuyệt đối (không cho kẻ gian vào nhưng hay kẹt bạn) hay Tiện lợi (dễ mở nhưng dễ nhầm)? ',
     target: 'Đánh đổi An toàn / Tiện ích',
-    icon: '🔒'
+    icon: '🔒',
+    dangPhatTrien: true
   }
 ];

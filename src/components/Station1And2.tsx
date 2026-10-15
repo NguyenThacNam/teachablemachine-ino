@@ -11,6 +11,8 @@ interface Station1And2Props {
   modelId: string;
   onChangeModel: (id: string) => void;
   onBack: () => void;
+  /** Chế độ 2 (Trạm 2) chưa mở — bấm vào chỉ báo "đang phát triển" */
+  onLocked: () => void;
 }
 
 /** Mô hình phải tự tin trên mức này thì mới tính là "đã lừa được AI" */
@@ -45,6 +47,7 @@ export const Station1And2: React.FC<Station1And2Props> = ({
   modelId,
   onChangeModel,
   onBack,
+  onLocked,
 }) => {
   const [activeMode, setActiveMode] = useState<'mode-1' | 'mode-2'>(initialMode);
 
@@ -186,15 +189,11 @@ export const Station1And2: React.FC<Station1And2Props> = ({
           </button>
 
           <button
-            onClick={() => setActiveMode('mode-2')}
-            className={`min-h-[44px] px-4 py-1.5 rounded-vua text-sm sm:text-base font-semibold flex items-center gap-2 transition-all cursor-pointer ${
- activeMode === 'mode-2'
- ? 'bg-the text-thu'
- : 'text-muc-nhat hover:text-toi'
- }`}
+            onClick={onLocked}
+            className="min-h-[44px] px-4 py-1.5 rounded-vua text-sm sm:text-base font-semibold flex items-center gap-2 transition-all cursor-pointer text-muc-mo opacity-60"
             type="button"
           >
-            <span className="text-[18px]" aria-hidden="true">⚡</span>
+            <span className="text-[18px]" aria-hidden="true">🔒</span>
             <span className="flex items-center gap-1.5">
               <span>Chế độ 2: Đánh lừa AI</span>
               <span className="px-1.5 py-0.5 rounded-nho bg-thu-nen text-thu text-sm font-semibold">
